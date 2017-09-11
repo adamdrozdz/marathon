@@ -54,8 +54,6 @@ class EventsController(
         parameters('event_type.*) { events =>
           extractClientIP { clientIp =>
             complete {
-              logger.info(s"SSE Socket opened with: ${conf.eventStreamLightweight()}")
-
               Source
                 .fromGraph[MarathonEvent, NotUsed](
                   new EventStreamSourceGraph(eventBus, conf.eventStreamMaxOutstandingMessages(), clientIp)
