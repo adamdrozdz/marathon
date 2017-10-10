@@ -16,7 +16,7 @@ import de.heikoseeberger.akkasse.ServerSentEvent
 import mesosphere.marathon.api.akkahttp.Controller
 import mesosphere.marathon.api.akkahttp.v2.EventsController.EventStreamSourceGraph
 import mesosphere.marathon.api.v2.json.Formats
-import mesosphere.marathon.core.election.{ ElectionService, LocalLeadershipEvent }
+import mesosphere.marathon.core.election.{ ElectionService, LeadershipTransition }
 import mesosphere.marathon.core.event.{ EventConf, EventStreamAttached, EventStreamDetached, MarathonEvent }
 import mesosphere.marathon.plugin.auth.{ Authenticator, AuthorizedResource, Authorizer, ViewResource }
 import play.api.libs.json.Json
@@ -108,7 +108,7 @@ object EventsController extends StrictLogging {
         super.preStart()
         val actor = getStageActor(receive)
         eventStream.subscribe(actor.ref, classOf[MarathonEvent])
-        eventStream.subscribe(actor.ref, classOf[LocalLeadershipEvent])
+        eventStream.subscribe(actor.ref, classOf[LeadershipTransition])
         eventStream.publish(EventStreamAttached(remoteAddress = remoteAddress.toString()))
         logger.info(s"EventStream attached: $remoteAddress")
         actorRef = Some(actor)
@@ -122,8 +122,8 @@ object EventsController extends StrictLogging {
       }
 
       def receive: Receive = {
-        case (_, LocalLeadershipEvent.Standby) => completeStage()
-        case (_, LocalLeadershipEvent.ElectedAsLeader) => //ignore
+        case (_, LeadershipTransition.Standby) => completeStage()
+        case (_, LeadershipTransition.ElectedAsLeader) => //ignore
         case (_, _: MarathonEvent) if messages.size > bufferSize =>
           logger.warn(s"Buffer is full - slow receiver. Close connection: $remoteAddress")
           failStage(BufferOverflowException(s"Buffer overflow (max capacity was: $bufferSize)!"))
